@@ -1,6 +1,6 @@
 import type { Transaction, ImportBatch, ProviderConfig, CardNormalization } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiService {
     private async fetchJson(endpoint: string, options?: RequestInit) {

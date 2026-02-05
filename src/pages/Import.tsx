@@ -7,6 +7,7 @@ import { providerService } from '../services/provider.service';
 import { csvParserService } from '../services/csv-parser.service';
 import { normalizationService } from '../services/normalization.service';
 import { dbService } from '../services/db.service';
+import { generateUUID } from '../utils/uuid.utils';
 import type { ProviderConfig } from '../types';
 
 export const Import: React.FC = () => {
@@ -46,7 +47,7 @@ export const Import: React.FC = () => {
             if (!provider) throw new Error('Proveedor no encontrado');
 
             // Generate batch ID
-            const batchId = crypto.randomUUID();
+            const batchId = generateUUID();
 
             // Parse CSV with batch ID
             const parseResult = await csvParserService.parseFile(file, provider, batchId);
