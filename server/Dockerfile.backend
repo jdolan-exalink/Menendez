@@ -1,0 +1,22 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files and install ALL dependencies (including dev)
+COPY package*.json ./
+RUN npm install
+
+# Copy source and other files
+COPY . .
+
+# Build the project (compile TS to JS)
+RUN npm run build || true
+
+EXPOSE 3001
+
+ENV NODE_ENV=production
+ENV DATA_DIR=/app/data
+
+# Use node to run the compiled file if it exists, otherwise use npx ts-node
+CMD ["sh", "-c", "if [ -f dist/index.js ]; then node dist/index.js; else npx ts-node src/index.ts; fi"]
+
