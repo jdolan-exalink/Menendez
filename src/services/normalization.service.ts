@@ -104,28 +104,46 @@ export class NormalizationService {
         return null;
     }
 
-    async getDetectedOriginalNames(): Promise<{ name: string; isNormalized: boolean; currentNormalization?: string }[]> {
+    async getDetectedOriginalNames(): Promise<{ name: string; provider: string; isNormalized: boolean; currentNormalization?: string }[]> {
         const transactions = await dbService.getAllTransactions();
         const normalizations = await dbService.getAllCardNormalizations();
 
-        const uniqueNames = new Set<string>();
+        // Create a map of cardName -> Set of providers
+        const cardProviderMap = new Map<string, Set<string>>();
+
         transactions.forEach(t => {
-            if (t.original_card_name) uniqueNames.add(t.original_card_name);
+            if (t.original_card_name) {
+                if (!cardProviderMap.has(t.original_card_name)) {
+                    cardProviderMap.set(t.original_card_name, new Set());
+                }
+                cardProviderMap.get(t.original_card_name)!.add(t.provider);
+            }
         });
 
-        const sortedNames = Array.from(uniqueNames).sort();
+        // Create result array with one entry per card-provider combination
+        const result: { name: string; provider: string; isNormalized: boolean; currentNormalization?: string }[] = [];
 
-        return sortedNames.map(name => {
-            const lowerName = name.toLowerCase().trim();
+        cardProviderMap.forEach((providers, cardName) => {
+            const lowerName = cardName.toLowerCase().trim();
             const foundNorm = normalizations.find(n =>
                 n.original_names.some(on => on.toLowerCase().trim() === lowerName)
             );
 
-            return {
-                name,
-                isNormalized: !!foundNorm,
-                currentNormalization: foundNorm?.normalized_name
-            };
+            providers.forEach(provider => {
+                result.push({
+                    name: cardName,
+                    provider: provider,
+                    isNormalized: !!foundNorm,
+                    currentNormalization: foundNorm?.normalized_name
+                });
+            });
+        });
+
+        // Sort by card name, then by provider
+        return result.sort((a, b) => {
+            const nameCompare = a.name.localeCompare(b.name);
+            if (nameCompare !== 0) return nameCompare;
+            return a.provider.localeCompare(b.provider);
         });
     }
 

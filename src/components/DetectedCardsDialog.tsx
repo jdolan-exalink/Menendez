@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { normalizationService } from '../services/normalization.service';
+import { getProviderColor } from '../utils/providerColors';
 import { Search, CreditCard, Check, Tag } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -15,6 +16,7 @@ interface DetectedCardsDialogProps {
 
 interface DetectedCard {
     name: string;
+    provider: string;
     isNormalized: boolean;
     currentNormalization?: string;
 }
@@ -107,10 +109,11 @@ export const DetectedCardsDialog: React.FC<DetectedCardsDialogProps> = ({
                                         {filteredCards.map((card) => {
                                             const isForbidden = card.isNormalized && !alreadySelected.includes(card.name);
                                             const isSelected = selected.includes(card.name);
+                                            const cardKey = `${card.name}-${card.provider}`;
 
                                             return (
                                                 <div
-                                                    key={card.name}
+                                                    key={cardKey}
                                                     onClick={() => toggleSelect(card.name, isForbidden)}
                                                     className={cn(
                                                         "flex items-center justify-between p-4 transition-all duration-200",
@@ -118,17 +121,27 @@ export const DetectedCardsDialog: React.FC<DetectedCardsDialogProps> = ({
                                                         isSelected && "bg-primary/10"
                                                     )}
                                                 >
-                                                    <div className="flex items-center space-x-3">
+                                                    <div className="flex items-center space-x-3 flex-1">
                                                         <div className={cn(
                                                             "w-8 h-8 rounded-lg flex items-center justify-center",
                                                             isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                                                         )}>
                                                             <CreditCard className="h-4 w-4" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-bold text-sm tracking-tight">{card.name}</p>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-bold text-sm tracking-tight">{card.name}</p>
+                                                                <span
+                                                                    className="px-2 py-0.5 rounded-md text-white text-[10px] font-bold uppercase tracking-wider"
+                                                                    style={{
+                                                                        backgroundColor: getProviderColor(card.provider)
+                                                                    }}
+                                                                >
+                                                                    {card.provider}
+                                                                </span>
+                                                            </div>
                                                             {card.isNormalized && (
-                                                                <p className="text-[10px] text-primary font-bold uppercase tracking-wider flex items-center mt-0.5">
+                                                                <p className="text-[10px] text-primary font-bold uppercase tracking-wider flex items-center">
                                                                     <Tag className="h-2 w-2 mr-1" />
                                                                     Ya en: {card.currentNormalization}
                                                                 </p>

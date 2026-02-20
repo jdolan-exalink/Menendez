@@ -9,6 +9,7 @@ import { Import } from './pages/Import';
 import { Providers } from './pages/Providers';
 import { Normalization } from './pages/Normalization';
 import { ImportHistory } from './pages/ImportHistory';
+import { Reconciliation } from './pages/Reconciliation';
 import { dbService } from './services/db.service';
 import { providerService } from './services/provider.service';
 import { normalizationService } from './services/normalization.service';
@@ -62,6 +63,7 @@ function App() {
             <Route path="/import-history" element={<ImportHistory />} />
             <Route path="/providers" element={<Providers />} />
             <Route path="/normalization" element={<Normalization />} />
+            <Route path="/reconciliation" element={<Reconciliation />} />
           </Route>
         </Route>
 

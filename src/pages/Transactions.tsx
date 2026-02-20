@@ -110,7 +110,12 @@ export const Transactions: React.FC = () => {
             'Importe'
         ];
 
-        const csvData = filteredTransactions.map(t => {
+        // Sort transactions by date (most recent first) before exporting
+        const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+            return new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime();
+        });
+
+        const csvData = sortedTransactions.map(t => {
             const cardName = normalizationService.getFormattedCardName(t);
 
             return [
@@ -246,7 +251,12 @@ export const Transactions: React.FC = () => {
             'Terminal', 'Moneda', 'Fecha', 'Fecha de Pago', 'Tipo', 'Importe'
         ];
 
-        const csvData = toExport.map(t => {
+        // Sort selected transactions by date (most recent first) before exporting
+        const sortedToExport = [...toExport].sort((a, b) => {
+            return new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime();
+        });
+
+        const csvData = sortedToExport.map(t => {
             const cardName = normalizationService.getFormattedCardName(t);
 
             return [

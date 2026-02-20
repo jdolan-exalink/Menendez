@@ -34,6 +34,22 @@ Sistema web premium para la gestión, normalización y conciliación de archivos
 - **Gestión de Alias**: Sistema para unificar múltiples nombres de tarjetas (ej: "Visa Crédito", "VISA", "VI") bajo un único nombre normalizado.
 - **Unificación de Monedas**: Conversión automática a estándares como "ARS".
 
+### ⚖️ Conciliaciones ERP
+- **Importación desde ERP**: Carga de archivos CSV del sistema contable (Soft) con análisis automático de campos.
+- **Conciliación Automática**: Algoritmo inteligente que compara transacciones ERP vs. Proveedores por:
+  - Código de autorización
+  - Nombre de tarjeta
+  - Monto (tolerancia < $0.01)
+- **4 Estados de Conciliación**:
+  - ✅ **Conciliado**: Coincidencia perfecta
+  - ⚠️ **Solo en ERP**: Registro solo en el sistema contable
+  - 🔶 **Solo en Proveedor**: Registro solo en proveedor de pago
+  - ❌ **Diferencia de Monto**: Coincidencia con importes distintos
+- **Exportación de Resultados**: Descarga CSV completo con todas las comparaciones
+- **Análisis Visual**: Dashboard con estadísticas y filtros por estado
+
+📚 **Documentación completa**: [`docs/CONCILIACIONES.md`](docs/CONCILIACIONES.md)
+
 ---
 
 ## 🛠️ Stack Tecnológico

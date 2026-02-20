@@ -7,7 +7,8 @@ import {
     History,
     Settings,
     Tag,
-    FileText
+    FileText,
+    Scale
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { FULL_VERSION } from '../../constants/version';
@@ -20,6 +21,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/reconciliation', icon: Scale, label: 'Conciliaciones' },
     { to: '/transactions', icon: List, label: 'Transacciones' },
     { to: '/import', icon: Upload, label: 'Importar' },
     { to: '/import-history', icon: History, label: 'Historial' },

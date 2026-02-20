@@ -27,8 +27,8 @@ export class CSVParserService {
 
         return new Promise((resolve) => {
             Papa.parse(file, {
-                encoding: 'ISO-8859-1', // Use Latin-1 encoding for Windows CSV files
-                delimiter: provider.delimiter || undefined, // Use provider's delimiter if specified
+                encoding: 'UTF-8', // Try UTF-8 first
+                delimiter: provider.delimiter || undefined,
                 skipEmptyLines: 'greedy',
                 complete: (results) => {
                     const parsed = this.processCSVData(results.data as string[][], provider, batchId);
@@ -152,6 +152,8 @@ export class CSVParserService {
         console.log('Column count:', detectedCols.length);
         console.log('Looking for transaction_date column:', provider.columnMapping['transaction_date']);
         console.log('Transaction date column found?', columnIndexMap.has(provider.columnMapping['transaction_date']));
+        console.log('Looking for coupon_number column:', provider.columnMapping['coupon_number']);
+        console.log('Coupon number column found?', columnIndexMap.has(provider.columnMapping['coupon_number']));
 
         // Show first few column names in alert for visibility
         if (detectedCols.length > 0) {
@@ -184,6 +186,22 @@ export class CSVParserService {
                     if (rawAmount.trim().startsWith('-')) {
                         continue;
                     }
+                    // Skip if empty or zero amount
+                    if (!rawAmount.trim() || rawAmount.trim() === '0' || rawAmount.trim() === '0,00' || rawAmount.trim() === '0.00') {
+                        continue;
+                    }
+                }
+
+                // Check for declined transactions in Fiserv
+                const estadoCol = 'Estado';
+                const estadoValue = this.getCellValue(row, columnIndexMap, estadoCol);
+                if (estadoValue && (
+                    estadoValue.toLowerCase().includes('negada') || 
+                    estadoValue.toLowerCase().includes('denegada') ||
+                    estadoValue.toLowerCase().includes('rechazada') ||
+                    estadoValue.toLowerCase().includes('declined')
+                )) {
+                    continue; // Skip declined transactions
                 }
 
                 const transaction = this.rowToTransaction(row, columnIndexMap, provider, batchId);
@@ -193,8 +211,9 @@ export class CSVParserService {
                 }
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-                console.warn(`Error en fila ${i + 1}:`, errorMsg, row);
-                warnings.push(`Fila ${i + 1}: ${errorMsg}`);
+                // Only log as warning, not error - some rows may be invalid and that's ok
+                console.warn(`Advertencia en fila ${i + 1}:`, errorMsg);
+                // Don't add to warnings list for individual row errors to avoid cluttering the UI
             }
         }
 
@@ -287,12 +306,17 @@ export class CSVParserService {
         let type = this.determineTransactionType(typeStr);
 
         // Extract card name for QR detection
-        const original_card_name = this.getCellValue(row, columnMap, mapping['original_card_name']) || '';
+        let original_card_name = this.getCellValue(row, columnMap, mapping['original_card_name']) || '';
 
-        // Special handling for MercadoPago QR
-        if (provider.name === 'MercadoPago' && type === 'QR') {
-            // MercadoPago QR transactions should show as "Mercadopago QR"
-            // Don't change the type, but the card name will be normalized later
+        // Special handling for MercadoPago - no card column in CSV
+        if (provider.name === 'MercadoPago') {
+            // MercadoPago transactions don't have card info in CSV
+            // Assign based on type - QR for Cobro, or generic MercadoPago
+            if (type === 'QR' || typeStr?.toLowerCase().includes('cobro')) {
+                original_card_name = 'MercadoPago QR';
+            } else {
+                original_card_name = 'MercadoPago';
+            }
         }
 
         // Extract other fields

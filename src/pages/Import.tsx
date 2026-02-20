@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle2, RefreshCw, Store } from 'lucide-react';
 import { providerService } from '../services/provider.service';
 import { csvParserService } from '../services/csv-parser.service';
 import { normalizationService } from '../services/normalization.service';
@@ -154,27 +154,54 @@ export const Import: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Proveedor</label>
-                        <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            value={selectedProvider}
-                            onChange={(e) => setSelectedProvider(e.target.value)}
-                        >
-                            <option value="">Seleccionar proveedor...</option>
-                            {providers.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium">Proveedor</label>
+                            <button
+                                onClick={loadProviders}
+                                className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                                type="button"
+                            >
+                                <RefreshCw className="w-3 h-3" />
+                                Recargar
+                            </button>
+                        </div>
+                        {providers.length === 0 ? (
+                            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <Store className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                            No hay proveedores configurados
+                                        </p>
+                                        <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                                            Los proveedores deberían cargarse automáticamente. 
+                                            Haz clic en "Recargar" o refresca la página.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <select
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                value={selectedProvider}
+                                onChange={(e) => setSelectedProvider(e.target.value)}
+                            >
+                                <option value="">Seleccionar proveedor...</option>
+                                {providers.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Archivo CSV</label>
+                        <label className="text-sm font-medium">Archivo (CSV, XLS, XLSX)</label>
                         <div className="flex items-center space-x-2">
                             <Input
                                 type="file"
-                                accept=".csv"
+                                accept=".csv,.xls,.xlsx"
                                 onChange={handleFileChange}
                                 className="flex-1"
                             />
