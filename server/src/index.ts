@@ -227,16 +227,16 @@ const initializeDefaultProviders = () => {
         {
             name: 'American Express',
             color: '#006fcf',
-            skipRows: 9,
+            skipRows: 6,
             delimiter: ';',
             dateFormat: 'DD/MM/YYYY',
             numberFormat: 'dot-decimal',
             columnMapping: {
-                transaction_date: 'Fecha de la transaccin',
-                payment_date: 'Fecha de liquidacin',
-                amount: 'Cargos totales',
-                coupon_number: 'Nmero de liquidacin',
-                original_card_name: 'Enviando nombre de ubicacin'
+                transaction_date: 'Fecha de presentacion',
+                payment_date: 'Fecha de liquidacion',
+                amount: 'Importe de la liquidacion',
+                coupon_number: 'Numero de liquidacion',
+                original_card_name: 'Enviando nombre de ubicacion'
             }
         },
         {
@@ -256,6 +256,20 @@ const initializeDefaultProviders = () => {
                 batch_number: 'Lote',
                 terminal_number: 'Terminal',
                 original_card_name: 'Tarjeta'
+            }
+        },
+        {
+            name: 'Cabal',
+            color: '#00a651',
+            skipRows: 0,
+            delimiter: ';',
+            dateFormat: 'DD/MM/YYYY',
+            numberFormat: 'comma-decimal',
+            columnMapping: {
+                transaction_date: 'Fecha Compra',
+                coupon_number: 'Nro Cupon',
+                amount: 'Importe Total',
+                batch_number: 'Nro Resumen'
             }
         }
     ];
@@ -314,9 +328,9 @@ const initializeDefaultNormalizations = () => {
             color: '#006fcf'
         },
         {
-            original_names: ['CABAL', 'Cabal Debito', 'CABAL CREDITO'],
+            original_names: ['CABAL', 'Cabal Debito', 'CABAL CREDITO', 'CABAL DEBITO'],
             normalized_name: 'Cabal',
-            color: '#1e3a8a'
+            color: '#00a651'
         },
         {
             original_names: ['NARANJA', 'Naranja X'],
