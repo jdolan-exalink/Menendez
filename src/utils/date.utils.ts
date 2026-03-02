@@ -36,7 +36,11 @@ export function parseDate(dateStr: string, dateFormat: DateFormat): Date | null 
 
         // DD/MM/YYYY HH:mm:ss
         if (dateFormat === 'DD/MM/YYYY HH:mm:ss') {
-            const date = parse(dateStr, 'd/M/yyyy HH:mm:ss', new Date());
+            let date = parse(dateStr, 'd/M/yyyy HH:mm:ss', new Date());
+            if (!isValid(date)) {
+                // Fallback to just date parsing if time is omitted
+                date = parse(dateStr, 'd/M/yyyy', new Date());
+            }
             return isValid(date) ? date : null;
         }
 

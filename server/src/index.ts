@@ -136,18 +136,18 @@ db.serialize(() => {
     db.run(`CREATE INDEX IF NOT EXISTS idx_erp_transactions_auth ON erp_transactions(CodigoAprobacion)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_erp_transactions_card ON erp_transactions(NombreTarjeta)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_erp_transactions_batch ON erp_transactions(import_batch_id)`);
-    
+
     // Provider Transactions indexes
     db.run(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(transaction_date)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_transactions_auth ON transactions(auth_code)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_transactions_card ON transactions(normalized_card)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_transactions_provider ON transactions(provider)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_transactions_batch ON transactions(import_batch_id)`);
-    
+
     // Import Batches indexes
     db.run(`CREATE INDEX IF NOT EXISTS idx_import_batches_provider ON import_batches(provider)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_import_batches_date ON import_batches(imported_at)`);
-    
+
     // Reconciliations indexes
     db.run(`CREATE INDEX IF NOT EXISTS idx_reconciliations_status ON reconciliations(status)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_reconciliations_erp ON reconciliations(erp_transaction_id)`);
@@ -225,6 +225,15 @@ const initializeDefaultProviders = () => {
             }
         },
         {
+            name: 'MODO',
+            color: '#10b981',
+            skipRows: 0,
+            delimiter: ';',
+            dateFormat: 'DD/MM/YYYY',
+            numberFormat: 'dot-decimal',
+            columnMapping: {} // Handled by custom parser
+        },
+        {
             name: 'American Express',
             color: '#006fcf',
             skipRows: 6,
@@ -280,13 +289,13 @@ const initializeDefaultProviders = () => {
             console.error('Error deleting providers:', err);
             return;
         }
-        
+
         const stmt = db.prepare(`INSERT INTO providers (
             id, name, color, skipRows, delimiter, dateFormat, numberFormat, columnMapping, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
         const now = new Date().toISOString();
-        
+
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
             defaultProviders.forEach((p) => {
@@ -359,16 +368,16 @@ const initializeDefaultNormalizations = () => {
             console.error('Error checking normalizations count:', err);
             return;
         }
-        
+
         if (row.count === 0) {
             console.log('No normalizations found, initializing defaults...');
-            
+
             const stmt = db.prepare(`INSERT INTO card_normalizations (
                 id, normalized_name, original_names, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?)`);
 
             const now = new Date().toISOString();
-            
+
             db.serialize(() => {
                 db.run('BEGIN TRANSACTION');
                 defaults.forEach((n, index) => {
@@ -396,7 +405,7 @@ const initializeDefaultNormalizations = () => {
 app.listen(PORT, () => {
     console.log(`Backend server running on port ${PORT}`);
     console.log(`Database located at ${dbPath}`);
-    
+
     // Initialize after server is listening
     setTimeout(() => {
         initializeDefaultProviders();
@@ -433,7 +442,7 @@ app.get('/api/transactions', (req, res) => {
 // Get available months with data from both ERP and provider transactions
 app.get('/api/available-months', (req, res) => {
     const months = new Set<string>();
-    
+
     // Get months from provider transactions
     db.all(
         `SELECT DISTINCT strftime('%Y-%m', transaction_date) as month FROM transactions WHERE transaction_date IS NOT NULL`,
@@ -441,11 +450,11 @@ app.get('/api/available-months', (req, res) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
-            
+
             providerMonths.forEach((m) => {
                 if (m.month) months.add(m.month);
             });
-            
+
             // Get months from ERP transactions
             db.all(
                 `SELECT DISTINCT strftime('%Y-%m', CuponFecha) as month FROM erp_transactions WHERE CuponFecha IS NOT NULL`,
@@ -453,11 +462,11 @@ app.get('/api/available-months', (req, res) => {
                     if (err2) {
                         return res.status(500).json({ error: err2.message });
                     }
-                    
+
                     erpMonths.forEach((m) => {
                         if (m.month) months.add(m.month);
                     });
-                    
+
                     // Sort months descending (most recent first)
                     const sortedMonths = Array.from(months).sort((a, b) => b.localeCompare(a));
                     res.json(sortedMonths);
@@ -624,7 +633,7 @@ app.post('/api/providers/initialize-defaults', (req, res) => {
             skipRows: 0,
             delimiter: ';',
             dateFormat: 'DD/MM/YYYY HH:mm:ss',
-            numberFormat: 'comma-decimal',
+            numberFormat: 'dot-decimal',
             columnMapping: {
                 original_card_name: 'Marca',
                 currency: 'Moneda',
@@ -678,6 +687,18 @@ app.post('/api/providers/initialize-defaults', (req, res) => {
             },
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
+        },
+        {
+            id: 'modo-' + Date.now(),
+            name: 'MODO',
+            color: '#10b981',
+            skipRows: 0,
+            delimiter: ';',
+            dateFormat: 'DD/MM/YYYY',
+            numberFormat: 'dot-decimal',
+            columnMapping: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
         }
     ];
 
@@ -692,7 +713,7 @@ app.post('/api/providers/initialize-defaults', (req, res) => {
             stmt.run(
                 p.id, p.name, p.color, p.skipRows, p.delimiter, p.dateFormat, p.numberFormat,
                 JSON.stringify(p.columnMapping), p.created_at, p.updated_at,
-                function(this: sqlite3.RunResult) {
+                function (this: sqlite3.RunResult) {
                     if (this.changes > 0) inserted++;
                 }
             );
@@ -807,7 +828,7 @@ app.delete('/api/erp-transactions/batch/:batchId', (req, res) => {
 app.put('/api/erp-transactions/:id', (req, res) => {
     const { id } = req.params;
     const t = req.body;
-    
+
     db.run(
         `UPDATE erp_transactions SET 
             IdCuponTarjetaCredito = ?, IdTarjeta = ?, CuponNumero = ?, CuponFecha = ?,
@@ -818,11 +839,11 @@ app.put('/api/erp-transactions/:id', (req, res) => {
             CodigoAprobacion = ?, CuponPendiente = ?, TipoAcreditacion = ?
         WHERE id = ?`,
         [t.IdCuponTarjetaCredito, t.IdTarjeta, t.CuponNumero, t.CuponFecha,
-         t.CuponRazonSocial, t.CuponImporte, t.NumeroTarjeta, t.CuponDocumento,
-         t.AcreditadoEnSeleccion, t.IdCierreTurno, t.IdCaja, t.TurnoDescripcion,
-         t.IdLoteTarjetasCredito, t.LotePrefijo, t.LoteNumero, t.LoteFecha,
-         t.LoteComprobante, t.NombreTarjeta, t.ComprobanteAcreditacion, t.Telefono,
-         t.CodigoAprobacion, t.CuponPendiente, t.TipoAcreditacion, id],
+        t.CuponRazonSocial, t.CuponImporte, t.NumeroTarjeta, t.CuponDocumento,
+        t.AcreditadoEnSeleccion, t.IdCierreTurno, t.IdCaja, t.TurnoDescripcion,
+        t.IdLoteTarjetasCredito, t.LotePrefijo, t.LoteNumero, t.LoteFecha,
+        t.LoteComprobante, t.NombreTarjeta, t.ComprobanteAcreditacion, t.Telefono,
+        t.CodigoAprobacion, t.CuponPendiente, t.TipoAcreditacion, id],
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
@@ -833,7 +854,7 @@ app.put('/api/erp-transactions/:id', (req, res) => {
 // Reconciliation - Enhanced with configurable tolerances and better matching
 app.post('/api/reconcile', (req, res) => {
     const { startDate, endDate, options = {} } = req.body;
-    
+
     // Configurable matching options with sensible defaults
     const MATCH_OPTIONS = {
         amountTolerance: options.amountTolerance || 1.0,  // $1.00 tolerance
@@ -865,7 +886,7 @@ app.post('/api/reconcile', (req, res) => {
                     const normalizeCard = (name: string): string => {
                         if (!name) return '';
                         let normalized = name.toUpperCase().trim();
-                        
+
                         // Remove common suffixes/prefixes
                         normalized = normalized
                             .replace(/ - FISERV - POSNET/g, '')
@@ -873,19 +894,19 @@ app.post('/api/reconcile', (req, res) => {
                             .replace(/ - PAYWAY/g, '')
                             .replace(/ - PRISMA/g, '')
                             .replace(/PAGO CON QR/g, 'QR');
-                        
+
                         // Standardize DEBITO variations
                         normalized = normalized
                             .replace(/\bDEBITO\b/g, 'DEB')
                             .replace(/\bDEBIT\b/g, 'DEB')
                             .replace(/\bDB\b/g, 'DEB');
-                        
+
                         // Standardize CREDITO variations  
                         normalized = normalized
                             .replace(/\bCREDITO\b/g, 'CRED')
                             .replace(/\bCREDIT\b/g, 'CRED')
                             .replace(/\bCR\b/g, 'CRED');
-                        
+
                         // Standardize card names
                         const cardMappings: Record<string, string> = {
                             'AMERICAN EXPRESS': 'AMEX',
@@ -931,19 +952,19 @@ app.post('/api/reconcile', (req, res) => {
                             'CIRRUS': 'CIRRUS',
                             'PLUS': 'PLUS'
                         };
-                        
+
                         // Check for exact match first
                         if (cardMappings[normalized]) {
                             return cardMappings[normalized];
                         }
-                        
+
                         // Check for partial matches
                         for (const [key, value] of Object.entries(cardMappings)) {
                             if (normalized.includes(key) || key.includes(normalized)) {
                                 return value;
                             }
                         }
-                        
+
                         // Remove spaces for fallback comparison
                         return normalized.replace(/\s+/g, '');
                     };
@@ -967,7 +988,7 @@ app.post('/api/reconcile', (req, res) => {
                         const d1 = parseDate(date1);
                         const d2 = parseDate(date2);
                         if (!d1 || !d2) return false;
-                        
+
                         const diffTime = Math.abs(d1.getTime() - d2.getTime());
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                         return diffDays <= toleranceDays;
@@ -995,7 +1016,7 @@ app.post('/api/reconcile', (req, res) => {
                         if (auth) {
                             if (!providerByAuth.has(auth)) providerByAuth.set(auth, []);
                             providerByAuth.get(auth)!.push(prov);
-                            
+
                             const key = `${auth}_${amount.toFixed(2)}`;
                             if (!providerByAuthAndAmount.has(key)) providerByAuthAndAmount.set(key, []);
                             providerByAuthAndAmount.get(key)!.push(prov);
@@ -1027,12 +1048,12 @@ app.post('/api/reconcile', (req, res) => {
                         const provAuth = normalizeAuth(prov.auth_code);
                         const erpCard = normalizeCard(erp.NombreTarjeta);
                         const provCard = normalizeCard(prov.normalized_card || prov.original_card_name);
-                        
+
                         // Auth code match (highest weight)
                         if (erpAuth && provAuth && erpAuth === provAuth) {
                             score += 40;
                         }
-                        
+
                         // Amount match with tolerance
                         const amountDiff = Math.abs(erpAmount - provAmount);
                         if (amountDiff < 0.01) {
@@ -1040,7 +1061,7 @@ app.post('/api/reconcile', (req, res) => {
                         } else if (amountDiff <= MATCH_OPTIONS.amountTolerance) {
                             score += 20 - (amountDiff / MATCH_OPTIONS.amountTolerance * 10);
                         }
-                        
+
                         // Card match
                         if (erpCard && provCard) {
                             if (erpCard === provCard) {
@@ -1049,14 +1070,14 @@ app.post('/api/reconcile', (req, res) => {
                                 score += 10;
                             }
                         }
-                        
+
                         // Date match with tolerance
                         const erpDate = String(erp.CuponFecha || '').split('T')[0];
                         const provDate = String(prov.transaction_date || '').split('T')[0];
                         if (datesWithinTolerance(erpDate, provDate, MATCH_OPTIONS.dateToleranceDays)) {
                             score += 10;
                         }
-                        
+
                         return score;
                     };
 
@@ -1098,7 +1119,7 @@ app.post('/api/reconcile', (req, res) => {
                                     if (matchedProviderIds.has(candidate.id)) continue;
                                     const provAmount = parseFloat(String(candidate.amount || '0'));
                                     const amountDiff = Math.abs(erpAmount - provAmount);
-                                    
+
                                     if (amountDiff <= MATCH_OPTIONS.amountTolerance) {
                                         const score = calculateMatchScore(erp, candidate);
                                         if (score > matchScore && score >= 60) {
@@ -1119,8 +1140,8 @@ app.post('/api/reconcile', (req, res) => {
                                     const provAmount = parseFloat(String(candidate.amount || '0'));
                                     const provDate = String(candidate.transaction_date || '').split('T')[0];
                                     const amountDiff = Math.abs(erpAmount - provAmount);
-                                    
-                                    if (amountDiff <= MATCH_OPTIONS.amountTolerance && 
+
+                                    if (amountDiff <= MATCH_OPTIONS.amountTolerance &&
                                         datesWithinTolerance(erpDate, provDate, MATCH_OPTIONS.dateToleranceDays)) {
                                         const score = calculateMatchScore(erp, candidate);
                                         if (score > matchScore && score >= 50) {
@@ -1140,7 +1161,7 @@ app.post('/api/reconcile', (req, res) => {
                                     if (matchedProviderIds.has(candidate.id)) continue;
                                     const provAmount = parseFloat(String(candidate.amount || '0'));
                                     const amountDiff = Math.abs(erpAmount - provAmount);
-                                    
+
                                     if (amountDiff <= MATCH_OPTIONS.amountTolerance) {
                                         const score = calculateMatchScore(erp, candidate);
                                         if (score > matchScore && score >= 40) {
@@ -1156,7 +1177,7 @@ app.post('/api/reconcile', (req, res) => {
                             matchedProviderIds.add(match.id);
                             const provAmount = parseFloat(String(match.amount || '0'));
                             const amountDiff = Math.abs(erpAmount - provAmount);
-                            
+
                             results.push({
                                 erp_transaction: erp,
                                 provider_transaction: match,

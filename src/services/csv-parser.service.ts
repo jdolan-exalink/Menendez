@@ -31,6 +31,11 @@ export class CSVParserService {
             return this.parseAmexFile(file, provider, batchId);
         }
 
+        // Special handling for Modo text format
+        if (provider.name.toLowerCase().includes('modo')) {
+            return this.parseModoFile(file, provider, batchId);
+        }
+
         if (extension === 'xls' || extension === 'xlsx') {
             return this.parseExcelFile(file, provider, batchId);
         }
@@ -88,10 +93,10 @@ export class CSVParserService {
             // Parse each data line
             for (let i = dataStartIndex; i < lines.length; i++) {
                 let line = lines[i];
-                
+
                 // Remove surrounding quotes and trim
                 line = line.replace(/^"|"$/g, '').trim();
-                
+
                 // Skip empty lines and subtotals
                 if (!line || line.includes('*TOTAL RESUMEN*') || line.includes('TOTAL DE VENTAS') || line.includes('ARANCEL') || line.includes('CABAL DEBITO')) {
                     continue;
@@ -161,6 +166,117 @@ export class CSVParserService {
         return { transactions, errors, warnings };
     }
 
+    // Special parser for MODO text format
+    private async parseModoFile(file: File, provider: ProviderConfig, batchId: string): Promise<ParsedCSVResult> {
+        const transactions: Transaction[] = [];
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        try {
+            const text = await file.text();
+            const lines = text.split(/\r?\n/);
+
+            console.log('=== MODO PARSER DEBUG ===');
+            console.log('Total lines:', lines.length);
+
+            let dataStartLine = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('Transac Fecha') && lines[i].includes('Terminal')) {
+                    // Usually line after "-------------------------------------------"
+                    dataStartLine = i + 2;
+                    break;
+                }
+            }
+
+            if (dataStartLine === -1) {
+                // If header not matched perfectly, look for "---" or "QR      "
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('QR      ')) {
+                        dataStartLine = i;
+                        break;
+                    }
+                }
+            }
+
+            if (dataStartLine === -1 || dataStartLine >= lines.length) {
+                return { transactions: [], errors: ['No se encontraron datos de transacciones en el archivo MODO'], warnings: [] };
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                // Skip non-data lines (totals, headers, etc)
+                if (!line.startsWith('QR')) {
+                    continue;
+                }
+
+                // Split line by whitespace
+                const parts = line.split(/\s+/);
+
+                // MODO expected minimum parts:
+                // 0: Transac (QR)
+                // 1: Fecha (DD.MM.YYYY)
+                // 2: Terminal
+                // 3: Lote
+                // 4: Cupon
+                // 5: Ventas
+                // 6: Arancel
+                // 7: ID
+                // 8+: Billetera (rest of the string)
+
+                if (parts.length < 9) {
+                    continue;
+                }
+
+                const dateStr = parts[1]; // e.g. 01.01.2026
+                const terminalNumber = parts[2];
+                const batchNumber = parts[3];
+                const couponNumber = parts[4];
+                const amountStr = parts[5];
+                const billetera = parts.slice(8).join(' ');
+
+                // Parse date
+                // Format is DD.MM.YYYY -> convert to DD/MM/YYYY
+                const normalizedDateStr = dateStr.replace(/\./g, '/');
+                const parsedDate = parseDate(normalizedDateStr, 'DD/MM/YYYY');
+
+                const amount = parseFloat(amountStr) || 0;
+
+                if (!parsedDate || amount <= 0) {
+                    continue;
+                }
+
+                const transaction: Transaction = {
+                    id: uuidv4(),
+                    import_batch_id: batchId,
+                    provider: provider.name,
+                    original_card_name: billetera || 'MODO',
+                    normalized_card: 'Modo',
+                    coupon_number: couponNumber,
+                    auth_code: '', // Not consistently provided
+                    batch_number: batchNumber,
+                    terminal_number: terminalNumber,
+                    currency: 'ARS',
+                    transaction_date: parsedDate,
+                    payment_date: parsedDate,
+                    type: 'QR',
+                    amount: amount,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                };
+
+                transactions.push(transaction);
+            }
+
+            console.log(`MODO parser: Found ${transactions.length} transactions`);
+
+        } catch (error) {
+            errors.push(`Error parsing MODO file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+
+        return { transactions, errors, warnings };
+    }
+
     // Special parser for American Express Excel format
     private async parseAmexFile(file: File, provider: ProviderConfig, batchId: string): Promise<ParsedCSVResult> {
         const transactions: Transaction[] = [];
@@ -194,10 +310,10 @@ export class CSVParserService {
 
             for (let i = dataStartRow; i < rawData.length; i++) {
                 const row = rawData[i];
-                
+
                 // Skip empty rows or rows without date
                 if (!row || row.length === 0 || !row[0]) continue;
-                
+
                 // Check if first column looks like a date
                 const firstCol = String(row[0]);
                 if (!firstCol.includes('/')) continue;
@@ -222,7 +338,7 @@ export class CSVParserService {
                         transactionDate = parseDate(dateStr, 'DD/MM/YYYY');
                     }
                 }
-                
+
                 // Fallback to Fecha de presentación
                 if (!transactionDate && fechaPresentacion) {
                     if (fechaPresentacion instanceof Date) {
@@ -446,7 +562,7 @@ export class CSVParserService {
                 const estadoCol = 'Estado';
                 const estadoValue = this.getCellValue(row, columnIndexMap, estadoCol);
                 if (estadoValue && (
-                    estadoValue.toLowerCase().includes('negada') || 
+                    estadoValue.toLowerCase().includes('negada') ||
                     estadoValue.toLowerCase().includes('denegada') ||
                     estadoValue.toLowerCase().includes('rechazada') ||
                     estadoValue.toLowerCase().includes('declined')
